@@ -116,7 +116,7 @@ def main():
                 print(f"Biggest face - smile confidence: {smile_confidence:.2f}, smiling: {is_smiling}")
                 
                 # Check for problematic types
-                print(f"Type of is_smiling: {type(is_smiling)}")
+                # print(f"Type of is_smiling: {type(is_smiling)}")
                 
                 if isinstance(is_smiling, np.bool_):
                     # Convert numpy bool to Python bool

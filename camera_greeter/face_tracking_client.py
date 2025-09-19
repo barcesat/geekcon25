@@ -2,6 +2,23 @@ import requests
 import time
 import json
 import argparse
+import threading
+import os
+import subprocess
+import vlc
+import random
+def play_emotional_damage():
+    try:
+        sounds_dir = os.path.join(os.path.dirname(__file__), "sounds")
+        mp3_files = [f for f in os.listdir(sounds_dir) if f.endswith(".mp3")]
+        if not mp3_files:
+            print("No mp3 files found in sounds folder.")
+            return
+        selected_mp3 = os.path.join(sounds_dir, random.choice(mp3_files))
+        player = vlc.MediaPlayer(selected_mp3)
+        player.play()
+    except Exception as e:
+        print(f"Audio playback error: {e}")
 
 class FaceTrackingClient:
     """Client for the Face Tracking API"""
@@ -82,6 +99,8 @@ class FaceTrackingClient:
                     elif self.last_status.get("is_smiling", False) and not status.get("is_smiling", False):
                         self._trigger_callbacks("on_smile_ended", status)
                         print("\n😐 Smile ended")
+
+                        threading.Thread(target=play_emotional_damage, daemon=True).start()
                     
                     # Trigger general update callback
                     self._trigger_callbacks("on_tracking_update", status)
