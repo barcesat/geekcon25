@@ -15,39 +15,42 @@ import numpy as np
 #     exit(1)
 
 # Initialize OpenAI client
-client = OpenAI(
-#     base_url="https://openrouter.ai/api/v1",
-    api_key="sk-OsMMq65tXdfOIlTUYtocSL7NCsmA7CerN77OkEv29dODg1EA",
-)
+
+# client = OpenAI(
+# #     base_url="https://openrouter.ai/api/v1",
+#     api_key="sk-OsMMq65tXdfOIlTUYtocSL7NCsmA7CerN77OkEv29dODg1EA",
+# )
+
 # client = PuterClient()
 # client.login("your_username", "your_password")
 # Initialize the recognizer
 recognizer = sr.Recognizer()
 
-def analyze_joke(joke):
-    """Analyze how funny a joke is using GPT"""
-    try:
-        # response = client.chat.completions.create(
-        #     model="gpt-3.5-turbo",
-        #     messages=[
-        #         {"role": "system", "content": "You are a comedy expert. Rate Hebrew jokes on a scale of 1-10. Return only a number (the rate)."},
-        #         {"role": "user", "content": f"Rate this joke in Hebrew on a scale of 1 to 10. Return only a number of the rate, no other text: {joke}"}
-        #     ]
-        # )
-        # return response.choices[0].message.content
-        # Call ai.chat or relevant API based on Puter SDK docs
-        response = client.ai.chat(
-            messages=[
-                {"role": "system", "content": "את/ה מומחה/ית לקומדיה. דרג/י בדיחות בעברית מ‑1 עד 10 והסבר בקצרה בעברית."},
-                {"role": "user", "content": f"דרג/י את הבדיחה הזאת: {joke}"}
-            ]
-        )
 
-        # Access the response from the correct API call
-        return response['message']['content']  
-    except Exception as e:
-        print(f"Error analyzing joke: {e}")
-        return "לא הצלחתי להעריך את הבדיחה, אבל אני בטוח שהיא מצחיקה!"
+# def analyze_joke(joke):
+#     """Analyze how funny a joke is using GPT"""
+#     try:
+#         # response = client.chat.completions.create(
+#         #     model="gpt-3.5-turbo",
+#         #     messages=[
+#         #         {"role": "system", "content": "You are a comedy expert. Rate Hebrew jokes on a scale of 1-10. Return only a number (the rate)."},
+#         #         {"role": "user", "content": f"Rate this joke in Hebrew on a scale of 1 to 10. Return only a number of the rate, no other text: {joke}"}
+#         #     ]
+#         # )
+#         # return response.choices[0].message.content
+#         # Call ai.chat or relevant API based on Puter SDK docs
+#         response = client.ai.chat(
+#             messages=[
+#                 {"role": "system", "content": "את/ה מומחה/ית לקומדיה. דרג/י בדיחות בעברית מ‑1 עד 10 והסבר בקצרה בעברית."},
+#                 {"role": "user", "content": f"דרג/י את הבדיחה הזאת: {joke}"}
+#             ]
+#         )
+
+#         # Access the response from the correct API call
+#         return response['message']['content']  
+#     except Exception as e:
+#         print(f"Error analyzing joke: {e}")
+#         return "לא הצלחתי להעריך את הבדיחה, אבל אני בטוח שהיא מצחיקה!"
 
 def speak_text(text):
     """Convert text to speech and play it"""
@@ -111,18 +114,19 @@ def main():
     user_name = None
     
     # Initial greeting and ask for name
-    # print("שלום, אני מושי הרובוט הרגיש. תספור בלב עד שלוש ואז תאמר לי - מה השם בבקשה?")
-    # speak_text("שלום, אני מושי הרובוט הרגיש. מה השם בבקשה?")
+
+    print("שלום, אני מושי הרובוט הרגיש. תספור בלב עד שלוש ואז תאמר לי - מה השם בבקשה?")
+    speak_text("שלום, אני מושי הרובוט הרגיש. מה השם בבקשה?")
     
-    # while not user_name:
-    #     text = recognize_speech()
-    #     if text:
-    #         user_name = text
-    #         speak_text(f"נעים להכיר {user_name}! אני שמח שהגעת")
-    #         with open("user_name.txt", "w", encoding="utf-8") as f:
-    #             f.write(user_name)
-    #     else:
-    #         speak_text("מה השם בבקשה?")
+    while not user_name:
+        text = recognize_speech()
+        if text:
+            user_name = text
+            speak_text(f"נעים להכיר {user_name}! אני שמח שהגעת")
+            with open("user_name.txt", "w", encoding="utf-8") as f:
+                f.write(user_name)
+        else:
+            speak_text("מה השם בבקשה?")
     
     # Ask for a joke
     print((f"אני רוצה לשמוע בדיחה"))
