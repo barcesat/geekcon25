@@ -3,14 +3,14 @@ import numpy as np
 import time
 import math
 from collections import deque
-import os
 import argparse
 import copy
 import serial
 import serial.tools.list_ports
-import threading
-import datetime
 
+import datetime
+import os, datetime, threading
+from crop import prepare_image_for_thermal_printer
 class SmileTimer:
     """Track smile duration and trigger events when threshold is reached."""
     def __init__(self, duration_threshold=5.0, cooldown_period=2.0):
@@ -58,7 +58,7 @@ class SmileTimer:
 
 class SerialDevice:
     """Handle communication with a serial device."""
-    def __init__(self, port=None, baud_rate=115200, timeout=1.0, auto_connect=True):
+    def __init__(self, port=None, baud_rate=9600, timeout=1.0, auto_connect=True):
         self.port = port
         self.baud_rate = baud_rate
         self.timeout = timeout
@@ -143,9 +143,10 @@ class YOLOSmileDetector:
                  model_path=None, 
                  conf_threshold=0.45, 
                  iou_threshold=0.5, 
-                 smile_duration=5.0, 
+                 smile_duration=2.0, 
                  serial_port=None, 
-                 smile_threshold=0.4):
+                 smile_threshold=0.4,
+                 photo_callback=None):
         """Initialize the YOLO face detector with landmarks and smile detection"""
         print("Initializing YOLOv8 Face Detector with smile detection...")
         
@@ -203,6 +204,43 @@ class YOLOSmileDetector:
         self.fps = 0
         self.frame_count = 0
         self.last_fps_time = time.time()
+
+        # Photo/printing callback or handler
+        self.photo_callback = photo_callback
+        self._photo_counter = 0
+
+    def handle_smile_event(self, frame):
+        """
+        Called when a smile event is triggered. Saves the original frame and prints it in a thread.
+        """
+
+        try:
+            now = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            self._photo_counter += 1
+            os.makedirs("photos", exist_ok=True)
+            photo_filename = os.path.join("photos", f"smile_photo_{now}_{self._photo_counter}.jpg")
+            # Save the original frame (no CV markings)
+            import cv2
+            cv2.imwrite(photo_filename, frame)
+            print(f"[PHOTO] Saved smiling face photo: {photo_filename}")
+
+            processed_path = prepare_image_for_thermal_printer(photo_filename, max_width=384)
+            if processed_path:
+                def print_photo_thread(image_path):
+                    try:
+                        from escpos.printer import Serial
+                        print(f"[PRINTER] Printing {image_path} on COM9...")
+                        p = Serial(devfile='COM9', baudrate=230400, bytesize=8, parity='N', stopbits=1, timeout=1.00, dsrdtr=True)
+                        p._raw(bytes([29, 40, 75, 2, 0, 49, 69, 255]))
+                        p.text("\nSmile!\nYou've been slapped with\nemotional damage\n")
+                        p.image(image_path)
+                        p.cut()
+                        print("[PRINTER] Print job finished.")
+                    except Exception as e:
+                        print(f"[PRINTER] Error: {e}")
+                threading.Thread(target=print_photo_thread, args=(processed_path,), daemon=True).start()
+        except Exception as e:
+            print(f"[PHOTO] Error in handle_smile_event: {e}")
 
     def make_anchors(self, feats_hw, grid_cell_offset=0.5):
         """Generate anchors from features."""
@@ -347,14 +385,21 @@ class YOLOSmileDetector:
         
         # Update smile duration timer and check if we should send a signal
         timer_triggered = self.smile_timer.update(any_smiling)
-        if timer_triggered and self.serial_device and self.serial_device.is_connected:
-            self.serial_device.send_signal()
+        if timer_triggered:
+            # Only trigger both handle_smile_event and send_signal together if serial_device is present and connected
+            if self.serial_device and self.serial_device.is_connected:
+                # Print and send signal at the same time
+                if self.photo_callback is not None:
+                    self.photo_callback(self._last_original_frame)
+                elif hasattr(self, '_last_original_frame'):
+                    self.handle_smile_event(self._last_original_frame)
+                self.serial_device.send_signal()
             self.smile_timer.smile_start_time = None
             self.smile_timer.is_triggered = False
         
         smile_detection_time = self.perf_tracker.end('smile_detection')
         total_time = self.perf_tracker.end('full_process')
-        
+
         # Return faces and metrics
         metrics = {
             'fps': self.fps,
@@ -365,8 +410,10 @@ class YOLOSmileDetector:
             'total_time': total_time,
             'smile_duration': self.smile_timer.get_smile_duration()
         }
-        
         return faces, metrics
+    def set_last_original_frame(self, frame):
+        """Store the last original frame (before any CV markings) for use in smile event."""
+        self._last_original_frame = frame.copy()
     
     def detect_smile(self, landmarks, frame=None):
         """Detect if a face is smiling based on landmarks using multiple features."""

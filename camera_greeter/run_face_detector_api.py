@@ -6,6 +6,16 @@ import argparse
 from face_tracking_api import FaceTrackingAPIServer
 from numpy_json_utils import convert_numpy_types
 
+# Import the smile detector
+from yolo_serial_smile_detector import YOLOSmileDetector
+
+# --- Import printer and crop utilities ---
+from crop import prepare_image_for_thermal_printer
+from escpos.printer import Serial
+import datetime
+import threading
+import shutil
+
 def main():
     """Run the serial smile detector with API server enabled"""
     parser = argparse.ArgumentParser(description='Face Detection with API')
@@ -22,9 +32,9 @@ def main():
                         help='Target camera FPS')
     parser.add_argument('--smile_threshold', type=float, default=0.6,
                         help='Threshold for smile detection (0.0-1.0)')
-    parser.add_argument('--smile_duration', type=float, default=5.0,
+    parser.add_argument('--smile_duration', type=float, default=2.0,
                         help='Duration in seconds for smile detection to trigger signal')
-    parser.add_argument('--serial_port', type=str, default='COM4',
+    parser.add_argument('--serial_port', type=str, default='COM8',
                         help='Serial port to connect to (e.g., COM3 on Windows, /dev/ttyUSB0 on Linux)')
     parser.add_argument('--api_host', type=str, default='localhost',
                         help='Host for the API server')
@@ -37,9 +47,6 @@ def main():
     api_server.start()
     
     try:
-        # Import the smile detector
-        from yolo_serial_smile_detector import YOLOSmileDetector
-        
         # Initialize the detector
         detector = YOLOSmileDetector(
             smile_threshold=args.smile_threshold,
@@ -54,28 +61,29 @@ def main():
         cap.set(cv2.CAP_PROP_FPS, args.fps)
         
         print(f"Camera opened with resolution {args.width}x{args.height} @ {args.fps}fps")
-        
+
+        last_smile_state = False
+
+
         while True:
             ret, frame = cap.read()
             if not ret:
                 print("Failed to read frame from camera")
                 break
-            
-            # Process frame
+
+            # Always set the original frame for smile event handling
+            detector.set_last_original_frame(frame)
+
             faces, metrics = detector.detect_faces(frame)
             frame = detector.draw_faces(frame, faces, metrics)
-            
-            # Update API with face tracking data
+
+            # --- Existing API and display logic ---
+            # (same as before, but moved below photo logic)
             if faces:
                 # Find the biggest face (should be marked with is_biggest)
                 biggest_face = next((face for face in faces if face.get('is_biggest', False)), None)
-                
-                # Process face info for JSON compatibility
                 if biggest_face:
-                    # Create a copy to avoid modifying the original
                     face_info = biggest_face.copy()
-                    
-                    # Convert box tuple to a dictionary for better JSON compatibility
                     if 'box' in face_info:
                         x1, y1, x2, y2 = face_info['box']
                         face_info['box'] = {
@@ -84,8 +92,6 @@ def main():
                             'x2': int(x2),
                             'y2': int(y2)
                         }
-                    
-                    # Convert landmarks to a dictionary
                     if 'landmarks' in face_info:
                         landmark_dict = {}
                         for i, (x, y) in enumerate(face_info['landmarks']):
@@ -93,8 +99,6 @@ def main():
                         face_info['landmarks'] = landmark_dict
                 else:
                     face_info = None
-                
-                # Update tracking data
                 face_data = {
                     "big_face_detected": biggest_face is not None,
                     "face_info": face_info,
@@ -108,30 +112,15 @@ def main():
                     "is_smiling": False,
                     "smile_confidence": 0.0
                 }
-            
-            # Debug output for data types
             if face_data["big_face_detected"] and face_data["face_info"]:
                 is_smiling = face_data["is_smiling"]
                 smile_confidence = face_data["smile_confidence"]
                 print(f"Biggest face - smile confidence: {smile_confidence:.2f}, smiling: {is_smiling}")
-                
-                # Check for problematic types
-                # print(f"Type of is_smiling: {type(is_smiling)}")
-                
                 if isinstance(is_smiling, np.bool_):
-                    # Convert numpy bool to Python bool
                     face_data["is_smiling"] = bool(is_smiling)
-            
-            # Convert all numpy types to standard Python types
             face_data = convert_numpy_types(face_data)
-                    
-            # Send data to API
             api_server.update_tracking_data(face_data)
-            
-            # Display the frame
             cv2.imshow('Face Detection with API', frame)
-            
-            # Exit if 'q' is pressed
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
         
