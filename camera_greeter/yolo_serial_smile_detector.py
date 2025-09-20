@@ -692,8 +692,8 @@ class YOLOSmileDetector:
         cv2.putText(frame, f"Faces: {len(faces)}", (10, 30), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
         
-        cv2.putText(frame, f"FPS: {metrics.get('fps', 0)}", (10, 60), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+        # cv2.putText(frame, f"FPS: {metrics.get('fps', 0)}", (10, 60), 
+        #             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
         
         # Draw smile duration progress bar if smiling
         if self.smile_timer.continuous_smile and 'smile_duration' in metrics:

@@ -120,7 +120,11 @@ def main():
                     face_data["is_smiling"] = bool(is_smiling)
             face_data = convert_numpy_types(face_data)
             api_server.update_tracking_data(face_data)
-            cv2.imshow('Face Detection with API', frame)
+            # Set the OpenCV window to fullscreen mode
+            window_name = 'Emotional Damage Machine'
+            cv2.namedWindow(window_name, cv2.WND_PROP_FULLSCREEN)
+            cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+            cv2.imshow(window_name, frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
         
