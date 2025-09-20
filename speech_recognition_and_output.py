@@ -15,14 +15,17 @@ import numpy as np
 #     exit(1)
 
 # Initialize OpenAI client
+
 # client = OpenAI(
 # #     base_url="https://openrouter.ai/api/v1",
 #     api_key="sk-OsMMq65tXdfOIlTUYtocSL7NCsmA7CerN77OkEv29dODg1EA",
 # )
+
 # client = PuterClient()
 # client.login("your_username", "your_password")
 # Initialize the recognizer
 recognizer = sr.Recognizer()
+
 
 # def analyze_joke(joke):
 #     """Analyze how funny a joke is using GPT"""
@@ -111,6 +114,7 @@ def main():
     user_name = None
     
     # Initial greeting and ask for name
+
     print("שלום, אני מושי הרובוט הרגיש. תספור בלב עד שלוש ואז תאמר לי - מה השם בבקשה?")
     speak_text("שלום, אני מושי הרובוט הרגיש. מה השם בבקשה?")
     
